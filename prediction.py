@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import classification_report
 
 W = 30 # Look-back window
@@ -13,12 +13,21 @@ def prepare_data(file):
     X, y = [], []
 
     for i in range(len(values) - W - H):
-        X.append(values[i : i + W])
-        # incident in next H steps?
+        window = values[i : i + W]
+        # feature engineering
+        features = [
+            np.mean(window),
+            np.std(window),
+            window[-1] - window[0], #total chane in window
+            np.max(window)
+        ]
+
+        # combine eow with new feature
+        X.append(np.concatenate([window,features]))
+
         future_spike = np.any(values[i + W : i + W + H] > THRESHOLD)
         y.append(1 if future_spike else 0)
-
-        return np.array(X), np.array(y)
+    return np.array(X), np.array(y)
 
 if __name__ == '__main__':
     X, y = prepare_data('metrics.csv')
@@ -27,7 +36,7 @@ if __name__ == '__main__':
     split = int(len(X) * 0.8)
     X_train, X_test, y_train, y_test = X[:split], X[split:], y[:split], y[split:]
 
-    model = RandomForestRegressor(n_estimators=100)
+    model = RandomForestClassifier(n_estimators=100)
     model.fit(X_train, y_train)
 
     print("------ Model performance ------ ")
